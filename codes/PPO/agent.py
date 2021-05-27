@@ -46,6 +46,9 @@ class PPO:
                     self.memory.sample()
             values = vals_arr
             ### compute advantage ###
+
+            #根据计算Advantage，其中利用了Critic提供的价值，折扣，采用了TD的方法
+            #先把每个时间步对应的advantage计算号
             advantage = np.zeros(len(reward_arr), dtype=np.float32)
             for t in range(len(reward_arr)-1):
                 discount = 1
@@ -58,16 +61,21 @@ class PPO:
             advantage = torch.tensor(advantage).to(self.device)
             ### SGD ###
             values = torch.tensor(values).to(self.device)
+            #训练的时候是分封一段一段，分别进行训练的
             for batch in batches:
                 states = torch.tensor(state_arr[batch], dtype=torch.float).to(self.device)
                 old_probs = torch.tensor(old_prob_arr[batch]).to(self.device)
                 actions = torch.tensor(action_arr[batch]).to(self.device)
+                #因为agent可能训练了好几轮，所以dist和old_probs可能不一样.所以用当前的agent采样不同state下的action概率分布情况dist。
                 dist = self.actor(states)
                 critic_value = self.critic(states)
                 critic_value = torch.squeeze(critic_value)
+                 #重要性采样，看一下相同的state输入的情况下，原策略模型计算的分布输出与当前模型的输出之间的重要性采样。
                 new_probs = dist.log_prob(actions)
                 prob_ratio = new_probs.exp() / old_probs.exp()
+                #维度应该是[batch_size, len(action)]，对一个batch内每个action采取了重要性采样
                 weighted_probs = advantage[batch] * prob_ratio
+                #advantage * 重要性采样，并且使用clip方法代替了KL散度，限制了两个模型之间的距离不要太近
                 weighted_clipped_probs = torch.clamp(prob_ratio, 1-self.policy_clip,
                         1+self.policy_clip)*advantage[batch]
                 actor_loss = -torch.min(weighted_probs, weighted_clipped_probs).mean()

@@ -66,6 +66,7 @@ def train(cfg,env,agent):
             running_steps += 1
             ep_reward += reward
             agent.memory.push(state, action, prob, val, reward, done)
+            #这里与PolicyGradient不同了，在PG中对模型的更新是在多个ep时更新一次，这里是采样一个轨迹时，得到一定pair时就更新
             if running_steps % cfg.update_fre == 0:
                 agent.update()
             state = state_

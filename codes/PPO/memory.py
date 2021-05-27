@@ -24,6 +24,7 @@ class PPOMemory:
         indices = np.arange(len(self.states), dtype=np.int64)
         np.random.shuffle(indices)
         batches = [indices[i:i+self.batch_size] for i in batch_step]
+        # 可见一次sample时返回的batches是根据batch_size分段的轨迹
         return np.array(self.states),\
                 np.array(self.actions),\
                 np.array(self.probs),\
